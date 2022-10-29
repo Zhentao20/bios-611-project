@@ -1,0 +1,71 @@
+---
+title: "Uncovering Diverse Mechanistic Spreading Pathways in Disease Progression of Alzheimer's Disease"
+author: "Zhentao Yu"
+date: '2022-10-28'
+output: pdf_document
+---
+
+Read data:
+```{r}
+amy <- read.csv("adni_amyloid_jason.csv",header=T)
+fdg <- read.csv("adni_fdg_jason.csv",header=T)
+tau <- read.csv("adni_tau_jason.csv",header=T)
+degree <- read.csv("adni_node_degree_jason.csv",header=T)
+```
+Feature selection:
+```{r}
+colnames(amy)[14:173] <- str_replace_all(colnames(amy[,-c(1:13)]),"Node","Amyloid")
+colnames(fdg)[14:173] <- str_replace_all(colnames(fdg[,-c(1:13)]),"Node","FDG")
+colnames(tau)[14:173] <- str_replace_all(colnames(tau[,-c(1:13)]),"Node","Tau")
+
+amy <- amy[,-c(2:13,10:12)] #160
+fdg <- fdg[,-c(2:13,10:12)] #160
+tau <- tau[,-c(2:13,10:12)] #160
+thickness <- thickness[,-c(2:4,153:164)] #148
+degree <- degree[,-c(2:4)] #160
+gene <- gs[,c(7,11:17)]
+
+choose.K <- function(X, PCA){           # choose number of latent factors by Bai and Ng (2002)
+  p <- ncol(X)
+  n <- nrow(X)
+  val <- log(norm(t(X), type = 'F') / p / n)
+  Kmax <- 20
+  for (K in 1:Kmax) {
+    F.hat <- matrix(sqrt(n) * PCA$vectors[, 1:K], ncol = K)
+    val <- c(val, log(norm(t(X) - t(X) %*% F.hat[, 1:K] %*% t(F.hat[, 1:K]) / n, type = 'F') / p / n) +
+               K * (p + n) / p / n * log(p * n / (p + n)))
+    ##                    K * (p + n) / p / n * log(min(p, n)))
+  }
+  return(which(val == min(val))-1)
+}
+
+choose.K.2 <- function(X){ # choose number of latent factors by Fan
+  eigen.val <- eigen(X %*% t(X))$val
+  return(which.max(eigen.val / lead(eigen.val)))
+}
+```
+Contribution of each modality
+```{r}
+refit.idx <- which(head(as.vector(fit$beta), - K11)[-1]!= 0)
+refit <- lm(Y~X11[, refit.idx])$coef[-1]
+beta.hat[which(beta.hat!= 0)]<- refit
+
+for (m in 1:2) {
+  Sig.Um   <- cov(U.hat[, idx11[[m]]])
+  Sig.Unom <- cov(U.hat[, -idx11[[m]]])
+  H.nom    <- diag(1, K11) + t(L.hat[-idx11[[m]], ]) %*% solve(diag(diag(Sig.Unom))) %*% L.hat[-idx11[[m]], ] # diag(Sig.Unom) f.s.
+  
+  beta.hat.m <- beta.hat[idx11[[m]]]
+  sig.m <- t(beta.hat.m) %*% cov(X11[, idx11[[m]]]) %*% beta.hat.m
+  sig.mnom <- t(beta.hat.m) %*% (L.hat[idx11[[m]], ] %*% solve(H.nom) %*% t(L.hat[idx11[[m]], ])  + Sig.Um) %*% beta.hat.m
+#  sig.all <- t(beta.hat) %*% cov(X11) %*% beta.hat
+  sig.all <- var(Y)
+  cat('\n ANOVA of modality', m, '\n')
+  cat('sig.all=',sig.all,'\n')
+  cat('sig.m = ', sig.m, '\n')
+  cat('sig.m / sig.all = ', t(beta.hat.m) %*% cov(X11[, idx11[[m]]]) %*% beta.hat.m / sig.all, '\n')
+  cat('sig.mnom = ', sig.mnom, '\n')
+  ## cat('sig.mnom / sig.all = ', sig.mnom / sig.all, '\n')
+  cat('sig.mnom / sig.all = ', sig.mnom / sig.all, '\n')
+}
+```
