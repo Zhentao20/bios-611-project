@@ -1,31 +1,33 @@
 ---
-title: "Uncovering Diverse Mechanistic Spreading Pathways in Disease Progression of Alzheimer's Disease"
+title: "Investigating Potential Pathways in Disease Progression of Alzheimer's Disease"
 author: "Zhentao Yu"
-date: '2022-10-28'
+date: '2022-12-5'
 output: pdf_document
 ---
 
 Read data:
-```{r}
-amy <- read.csv("adni_amyloid_jason.csv",header=T)
-fdg <- read.csv("adni_fdg_jason.csv",header=T)
-tau <- read.csv("adni_tau_jason.csv",header=T)
-degree <- read.csv("adni_node_degree_jason.csv",header=T)
+```{r,include=F}
+library(data.table)
+library(readxl)
+library(ncvreg)
+library(glmnet)
+library(flare)
+library(tidyverse)
+library(ascii)
+library(robmed)
+library(lavaan)
+library(qvalue)
+setwd("derive_data")
+dat<-read.csv("complete_cases_notau.csv",header = T)
+dat$EDU<-(dat$PTEDUCAT<=14)*1+(dat$PTEDUCAT>14&dat$PTEDUCAT<18)*2+(dat$PTEDUCAT>17&dat$PTEDUCAT)*3
+blank1<-c()
+blank2<-c()
 ```
-Feature selection:
-```{r}
-colnames(amy)[14:173] <- str_replace_all(colnames(amy[,-c(1:13)]),"Node","Amyloid")
-colnames(fdg)[14:173] <- str_replace_all(colnames(fdg[,-c(1:13)]),"Node","FDG")
-colnames(tau)[14:173] <- str_replace_all(colnames(tau[,-c(1:13)]),"Node","Tau")
 
-amy <- amy[,-c(2:13,10:12)] #160
-fdg <- fdg[,-c(2:13,10:12)] #160
-tau <- tau[,-c(2:13,10:12)] #160
-thickness <- thickness[,-c(2:4,153:164)] #148
-degree <- degree[,-c(2:4)] #160
-gene <- gs[,c(7,11:17)]
-
-choose.K <- function(X, PCA){           # choose number of latent factors by Bai and Ng (2002)
+```{r,include=F}
+set.seed(2022)
+# choose number of latent factors by Bai and Ng (2002)
+choose.K <- function(X, PCA){           
   p <- ncol(X)
   n <- nrow(X)
   val <- log(norm(t(X), type = 'F') / p / n)
@@ -38,34 +40,157 @@ choose.K <- function(X, PCA){           # choose number of latent factors by Bai
   }
   return(which(val == min(val))-1)
 }
+merge2<-na.omit(dat)
+merge2$PTGENDER<- as.factor(merge2$PTGENDER)
+merge2$EDU<- as.factor(merge2$EDU)
+X <- na.omit(dat)[, -c(1:18,342)]
+X_initial <- X[, -which(colnames(X) %in% c('SCAN_F', 'EXAMDATE_F','DX_F','SCAN_T', 'EXAMDATE_T','DX_T' ))]
 
-choose.K.2 <- function(X){ # choose number of latent factors by Fan
-  eigen.val <- eigen(X %*% t(X))$val
-  return(which.max(eigen.val / lead(eigen.val)))
+X1<- cbind(as.matrix(merge2$AGE),as.matrix(merge2$EDU),as.matrix(merge2$PTGENDER),X_initial)
+colnames(X1)[1:3]<-c("AGE","EDUCATION","GENDER")
+X_new <- X1
+adjx<-matrix(0,nrow=nrow(X_new),ncol=ncol(X_new)-3)
+for (j in (4:ncol(X_new))){
+  for (i in (1:nrow(X_new))){
+    adjx[i,j-3]<-((lm(X1[,j]~AGE+ EDUCATION+ GENDER, data = as.data.frame(X_new)))$res)[i]
+  }
 }
+adjx1<-as.data.frame(adjx)
+colnames(adjx1)<-colnames(X_new)[-c(1:3)]
+library(caret)
+X <- scale(adjx1)
+#ncol(X)
+adj <- lm(ADNI_MEM~AGE+ EDU+ PTGENDER, data = merge2)
+Y <- adj$res
+n <- nrow(X)
+idx <- list(1:160, 161:320) # indices of each
 ```
-Contribution of each modality
+Extract common factors:
 ```{r}
-refit.idx <- which(head(as.vector(fit$beta), - K11)[-1]!= 0)
-refit <- lm(Y~X11[, refit.idx])$coef[-1]
-beta.hat[which(beta.hat!= 0)]<- refit
+PCA   <- eigen(X %*% t(X))
+K     <- choose.K(X,PCA) # 1st way to choose K: 9
+plot(PCA$values)
+```
+Estimation of F, L, U and process of cross validation:
+```{r}
+F.hat <- sqrt(n) * PCA$vectors[, 1:K]
+L.hat <- t(X) %*% F.hat / n
+U.hat <- X - F.hat %*% t(L.hat)
+pen <- c(rep(1, ncol(U.hat)), rep(0, ncol(F.hat))) # penalty factor
+cv <- cv.ncvreg(cbind(U.hat, F.hat), Y, family = 'gaussian', seed=1,lambda.min=0.1,nfold=5,penalty = 'SCAD', standardize = F,
+                penalty.factor = pen)
+plot(cv)
+cv$lambda.min#0.0758
+```
+With the tuned $\lambda=0.07586428$ from previous section, we refit the model with SCAD penalty and select the variables with non-zero estimates as the final set of predictors. 
+```{r,warning=F}
+fit <- ncvreg(cbind(U.hat, F.hat), Y, family = 'gaussian', lambda=cv$lambda.min, penalty = 'SCAD',
+              penalty.factor = pen,
+              standardize = F)
 
-for (m in 1:2) {
-  Sig.Um   <- cov(U.hat[, idx11[[m]]])
-  Sig.Unom <- cov(U.hat[, -idx11[[m]]])
-  H.nom    <- diag(1, K11) + t(L.hat[-idx11[[m]], ]) %*% solve(diag(diag(Sig.Unom))) %*% L.hat[-idx11[[m]], ] # diag(Sig.Unom) f.s.
-  
-  beta.hat.m <- beta.hat[idx11[[m]]]
-  sig.m <- t(beta.hat.m) %*% cov(X11[, idx11[[m]]]) %*% beta.hat.m
-  sig.mnom <- t(beta.hat.m) %*% (L.hat[idx11[[m]], ] %*% solve(H.nom) %*% t(L.hat[idx11[[m]], ])  + Sig.Um) %*% beta.hat.m
-#  sig.all <- t(beta.hat) %*% cov(X11) %*% beta.hat
-  sig.all <- var(Y)
-  cat('\n ANOVA of modality', m, '\n')
-  cat('sig.all=',sig.all,'\n')
-  cat('sig.m = ', sig.m, '\n')
-  cat('sig.m / sig.all = ', t(beta.hat.m) %*% cov(X11[, idx11[[m]]]) %*% beta.hat.m / sig.all, '\n')
-  cat('sig.mnom = ', sig.mnom, '\n')
-  ## cat('sig.mnom / sig.all = ', sig.mnom / sig.all, '\n')
-  cat('sig.mnom / sig.all = ', sig.mnom / sig.all, '\n')
+beta.hat <- head(as.vector(fit$beta), - K)[-1]
+blank1<-cbind(blank1,sum(beta.hat!=0))
+blank2<-cbind(blank2,which(beta.hat!=0))
+idx.nonzero <- which(fit$beta[-1]!= 0)
+idx.nonzero <- idx.nonzero[1:(length(idx.nonzero)-K)]
+nonzeros <- as.matrix(fit$beta[idx.nonzero+1], ncol = 1)
+nonzeros <- cbind(nonzeros, paste('Node.', idx.nonzero, sep = ''))
+rownames(nonzeros) <- colnames(X)[idx.nonzero]
+save(dat, Y, adj, X, K, fit, nonzeros, file = 'MEM_output.RData')
+print(ascii(nonzeros, include.rownames = TRUE, include.colnames = FALSE,
+            format = "f", digits = 3,
+            caption = ""), type = "org")
+```
+Mediation Analysis:
+```{r,include=F}
+set.seed(1)
+load('MEM_output.RData')
+dat$CAT[dat$DX=="CN"|dat$DX=="SMC"]<-1
+dat$CAT[dat$DX=="EMCI"]<-2
+dat$CAT[dat$DX=="LMCI"|dat$DX=="AD"]<-3
+dat$CAT<-as.factor(dat$CAT)
+X <- data.frame(X)
+X4 <- X[, colnames(X) %in% rownames(nonzeros)]
+X_adj1<-data.frame(cbind(dat$APOE4,dat$CAT))
+colnames(X_adj1)[1:2]<-c('APOE4','Group')
+X_adj2<-cbind(na.omit(X_adj1),X4)
+rownames(nonzeros)[5]
+rownames(nonzeros)[6]
+nrow(nonzeros)
+dat1 <- cbind(Y, X_adj2)
+```
+Then we find potential mediators in each pathway:
+```{r,results="hide"}
+out1 <- matrix(NA, 5, 6)
+for (i in 3:7) {
+  for (j in 1:6) {
+    mod <- paste("\nY~b *", colnames(X_adj2)[7 + j], '+ c *', colnames(X_adj2)[i], '+ ', colnames(X_adj2)[1], '+ ', colnames(X_adj2)[2], '\n',
+                 colnames(X_adj2)[7 + j], '~a *', colnames(X_adj2)[i], '\n',
+                 'direct := c\n',
+                 'indirect := a * b\n',
+                 "total := c + (a * b)\n ")
+    
+    fit <- sem(model = mod, data = dat1)
+    out1[i-2, j] <- summary(fit)$PE$pvalue[length(summary(fit)$PE$pvalue)-1]
+  }
 }
+rownames(out1) <- colnames(X_adj2)[3:7]
+colnames(out1) <- colnames(X_adj2)[8:13]
+
+indirect <- matrix(NA, 5, 6)
+for (i in 3:7) {
+  for (j in 1:6) {
+    mod <- paste("\nY~b *", colnames(X_adj2)[7 + j], '+ c *', colnames(X_adj2)[i], '+ ', colnames(X_adj2)[1], '+ ', colnames(X_adj2)[2], '\n',
+                 colnames(X_adj2)[7 + j], '~a *', colnames(X_adj2)[i], '\n',
+                 'direct := c\n',
+                 'indirect := a * b\n',
+                 "total := c + (a * b)\n ")
+    
+    fit <- sem(model = mod, data = dat1)
+    indirect[i-2, j] <- summary(fit)$PE$est[15]/summary(fit)$PE$se[15]
+  }
+}
+rownames(indirect) <- colnames(X_adj2)[3:7]
+colnames(indirect) <- colnames(X_adj2)[8:13]
+
+indirectp <- matrix(NA, 5, 6)
+for (i in 3:7) {
+  for (j in 1:6) {
+    mod <- paste("\nY~b *", colnames(X_adj2)[7 + j], '+ c *', colnames(X_adj2)[i], '+ ', colnames(X_adj2)[1], '+ ', colnames(X_adj2)[2], '\n',
+                 colnames(X_adj2)[7 + j], '~a *', colnames(X_adj2)[i], '\n',
+                 'direct := c\n',
+                 'indirect := a * b\n',
+                 "total := c + (a * b)\n ")
+    
+    fit <- sem(model = mod, data = dat1)
+    indirectp[i-2, j] <- summary(fit)$PE$pvalue[15]
+  }
+}
+rownames(indirectp) <- colnames(X_adj2)[3:7]
+colnames(indirectp) <- colnames(X_adj2)[8:13]
+adjusted_idp<-matrix(NA,5,6)
+for (i in 1:5){
+  adjusted_idp[i,]<-qvalue(indirectp[i,],fdr.level = 0.05,pi0=1)$qvalues
+}
+rownames(adjusted_idp)<-rownames(indirectp)
+colnames(adjusted_idp)<-colnames(indirectp)
+```
+```{r}
+print(ascii(out1, include.rownames = TRUE, include.colnames = TRUE,
+            format = "f", digits = 3,
+            caption = ""), type = "org")
+
+out.D <- ifelse(out1 > 0.05, 'D', 'M')
+
+print(ascii(out.D, include.rownames = TRUE, include.colnames = TRUE,
+            format = "f", digits = 3,
+            caption = ""), type = "org")
+adjusted1<-matrix(NA,5,6)
+for (i in 1:5){
+  adjusted1[i,]<-qvalue(out1[i,],fdr.level = 0.05,pi0=1)$qvalues
+}
+rownames(adjusted1)<-rownames(out.D)
+colnames(adjusted1)<-colnames(out.D)
+out.q <- ifelse(adjusted1 > 0.05, 'D', 'M')
+out.D<-as.data.frame(out.D)
 ```
