@@ -42,10 +42,4 @@ Or to run Bash:
 
     > docker run -v `pwd`:/home/rstudio -e PASSWORD=some_pw -it l6 sudo -H -u rstudio /bin/bash -c "cd ~/; /bin/bash"
 
-Makefile
-========
 
-Makefile gives a big picture on the constructure of the project(coding).
-
-    > make derive_data/ADNI_DataSet_RID_PTID_Mapping_LiLang.xlsx derive_data/adni_amyloid_jason.csv derive_data/adni_fdg_jason.csv derive_data/adni_tau_jason.csv derive_data/adni_node_degree_jason.csv:\ derived_data/variance_quantification_hier.R
-      Rscript variance_quantification_hier.R
