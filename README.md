@@ -1,6 +1,6 @@
 # Bios-611-Final_Project
 
-Uncovering Diverse Mechanistic Spreading Pathways in Disease Progression of Alzheimer's Disease
+Investigating Potential Pathways in Disease Progression of Alzheimer's Disease
 ------------------------
 
 Proposal
