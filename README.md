@@ -15,24 +15,24 @@ Using This Repository
 -----
 Build the container:
 
-    > docker build . -t projectZY
+     docker build . -t projectZY
 
 This Docker container is based on rocker/verse. To run rstudio server:
 
-    > docker run -v `pwd`:/home/rstudio -p 8787:8787\
+     docker run -v `pwd`:/home/rstudio -p 8787:8787\
       -e PASSWORD=zhentao -t projectZY
       
 Using Makefile to generate all the stuff
 -----
 We can use the following command to clean the previous data.
 
-    > make clean
+     make clean
     
 we can get the results of variable selection and mediation analysis using the following command.
 
-    > make derived_results/Mediation_Analysis_MEM_adjusted_pvalue.csv
-    > make derived_results/Mediation_Analysis_MEM_adjusted.csv
-    > make derived_results/AF_MEM_EffectSize_Indirect.csv
+     make derived_results/Mediation_Analysis_MEM_adjusted_pvalue.csv
+     make derived_results/Mediation_Analysis_MEM_adjusted.csv
+     make derived_results/AF_MEM_EffectSize_Indirect.csv
     
 The Final Report
 -----
