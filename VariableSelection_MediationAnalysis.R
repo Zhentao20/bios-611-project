@@ -10,8 +10,7 @@ library(robmed)
 library(lavaan)
 library(qvalue)
 
-setwd("source_data")
-dat<-read.csv("complete_cases_notau.csv",header = T)
+dat<-read.csv("source_data/complete_cases_notau.csv",header = T)
 dat$EDU<-(dat$PTEDUCAT<=14)*1+(dat$PTEDUCAT>14&dat$PTEDUCAT<18)*2+(dat$PTEDUCAT>17&dat$PTEDUCAT)*3
 blank1<-c()
 blank2<-c()
@@ -96,7 +95,7 @@ nonzeros <- as.matrix(fit$beta[idx.nonzero+1], ncol = 1)
 nonzeros <- cbind(nonzeros, paste('Node.', idx.nonzero, sep = ''))
 rownames(nonzeros) <- colnames(X)[idx.nonzero]
 
-save(dat, Y, adj, X, K, fit, nonzeros, file = 'MEM_output.RData')
+save(dat, Y, adj, X, K, fit, nonzeros, file = 'derived_results/MEM_output.RData')
 
 print(ascii(nonzeros, include.rownames = TRUE, include.colnames = FALSE,
             format = "f", digits = 3,
