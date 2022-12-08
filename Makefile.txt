@@ -1,3 +1,0 @@
-make derive_data/e_data/complete_no_tau.csv:\ derive_data/Final_Project.R
-  Rscript Final_Project.R
-
