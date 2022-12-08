@@ -15,21 +15,25 @@ Using This Repository
 -----
 Build the container:
 
-    > docker build . -t project-env
+    > docker build . -t projectZY
 
 This Docker container is based on rocker/verse. To run rstudio server:
 
     > docker run -v `pwd`:/home/rstudio -p 8787:8787\
-      -e PASSWORD=mypassword -t project-env
+      -e PASSWORD=zhentao -t projectZY
       
-Then connect to the machine on port 8787.
+Using Makefile to generate all the stuff
+-----
+We can use the following command to clean the previous data.
 
-If you are cool and you want to run this on the command line:
-
-    > docker run -v `pwd`:/home/rstudio -e PASSWORD=some_pw -it l6 sudo -H -u rstudio /bin/bash -c "cd ~/; R"
+    > make clean
     
-Or to run Bash:
+we can get the results of variable selection and mediation analysis using the following command.
 
-    > docker run -v `pwd`:/home/rstudio -e PASSWORD=some_pw -it l6 sudo -H -u rstudio /bin/bash -c "cd ~/; /bin/bash"
-
-
+    > make derived_results/Mediation_Analysis_MEM_adjusted_pvalue.csv
+    > make derived_results/Mediation_Analysis_MEM_adjusted.csv
+    > make derived_results/AF_MEM_EffectSize_Indirect.csv
+    
+The Final Report
+-----
+The final report is wrote using overleaf, you can find it in Report/BIOS_611_Final_Project_ZY.pdf, and the source code to generate it can be seen in folder Overleaf.
