@@ -1,27 +1,17 @@
 # Bios-611-Final_Project
-
-Investigating Potential Pathways in Disease Progression of Alzheimer's Disease
+This a project created by Zhentao Yu for BIOS 611 at UNC, Chapel Hill.
 ------------------------
 
-Proposal
+Investigating Potential Pathways in Disease Progression of Alzheimer's Disease
 --------
 
-### Introduction
+### Object
 
-Although individuals with increased magnitude of pathological burden often show a greater cognitive decline over time, the neurophysiological mechanisms by which Alzheimer's pathology spreads in the brain and how this determines the associated trajectory of cognitive decline are still elusive.There is a compelling body of evidence that the diversity of cognitive decline trajectory and the extent of neurodegeneration caused by AD is closely related to the parthenogenesis process, where genetic factors (such as APOE4 status) have various contributions to the development of neuropathological burdens at different brain regions. It is vital to quantify the survival rate of risk factors that lead to cognitive decline in the diagnosis and treatment of AD.
-
-
-### Datasets
-
-The datasets are publicly available on Kaggle. They can be downloaded [](https://adni.loni.usc.edu/data-samples/access-data/). The dataset I have interests on is an (cross-sectional) image data from ADNI (Alzheimer’s Disease Neuroimaging Initiative), which includes 160 amyloids (A), 160 tau (T) and 160 neurodegeneration ([N]) respectively. Besides, it also contains outcome variables including memory score (ADNI_MEM) and execution functional score (ADNI_EF), which are common indicators of Alzheimer's disease (AD).
+Although the root cause of Alzheimer's disease (AD) is largely elusive, the amyloid hypothesis has been widely used in the AD research framework, where amyloidosis  (A biomarker) facilitates the spread of immediate neurodegeneration ([N] biomarker) and progressive cognitive decline. As the massive heterogeneities manifested in the clinical symptoms, it is critical to understand the pathophysiological mechanism of how whole-brain A and [N] biomarkers exert a synergistic effect on cognitive decline in the long period of disease progression. To answer this important scientific question, I conducted a mediation analysis after variable selection using factor model to uncover potential causal-like effect of A and [N] biomarkers on cognitive decline.In this project, Integrative factor regression model is applied to select key regions of interests(ROI). After variable selection, structural equation modelling with Sobel test is considered to find out potential mediation effect in causal relations, that is, whether FDG([N]) acts as mediator of Amyloid(A) on MEM score (A→N→MEM).
 
 
-### Preliminary Figures
 
-No figures is included.
-
-
-Usage
+Using This Repository
 -----
 Build the container:
 
